@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex Impact 3D</title>
+<style>
+  :root{
+    --amber:#F59E0B; --amber-hi:#FBBF24; --bg:#0a0f1e;
+    --panel:rgba(15,23,42,0.72); --line:rgba(255,255,255,0.12);
+    --text:#F8FAFC; --muted:#94A3B8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  #scene{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none}
+  .hidden{display:none!important}
+
+  /* overlays */
+  .overlay{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+    padding:1.25rem;pointer-events:none}
+  .overlay.active{display:flex;pointer-events:auto}
+  .panel{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--line);border-radius:18px;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    max-width:560px;width:100%}
+  h1,h2{line-height:1.15}
+
+  /* menu */
+  #menu{background:linear-gradient(180deg,rgba(5,8,18,.15),rgba(5,8,18,.55))}
+  .topbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    align-items:center;padding:1rem 1.25rem}
+  .icon-btn{pointer-events:auto;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);font-size:1.15rem;cursor:pointer;display:inline-flex;
+    align-items:center;justify-content:center;transition:transform .15s ease,background .15s ease}
+  .icon-btn:hover{transform:scale(1.05);background:rgba(30,41,59,.85)}
+  .stars-total{display:flex;align-items:center;gap:.4rem;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:.5rem .8rem;font-weight:700}
+  .stars-total span:first-child{color:var(--amber)}
+  .menu-center{text-align:center;max-width:600px}
+  .title{font-size:clamp(2.2rem,7vw,4.4rem);font-weight:800;letter-spacing:-.02em;
+    text-shadow:0 6px 30px rgba(0,0,0,.6)}
+  .title span{color:var(--amber)}
+  .subtitle{margin-top:.5rem;color:var(--muted);font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;font-size:clamp(.7rem,2.4vw,1rem)}
+  .menu-buttons{margin-top:2rem;display:flex;flex-direction:column;gap:.75rem;align-items:center}
+  .btn{pointer-events:auto;border:none;border-radius:12px;padding:.95rem 2rem;font-family:inherit;
+    font-weight:700;font-size:1rem;cursor:pointer;transition:transform .15s ease,background .15s ease,opacity .15s;
+    letter-spacing:.02em}
+  .btn:hover{transform:scale(1.04)}
+  .btn.primary{background:var(--amber);color:#1a1206;min-width:260px;
+    box-shadow:0 10px 30px rgba(245,158,11,.35)}
+  .btn.primary:hover{background:var(--amber-hi)}
+  .btn.ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);min-width:260px}
+  .btn.ghost:hover{background:rgba(255,255,255,.12)}
+  .btn.small{min-width:auto;padding:.55rem 1rem;font-size:.85rem}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+  /* level select */
+  .level-panel{max-width:640px}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem}
+  .panel-head h2{font-size:1.25rem;letter-spacing:.05em}
+  .level-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+  .level-card{pointer-events:auto;text-align:left;background:rgba(255,255,255,.05);border:1px solid var(--line);
+    border-radius:14px;padding:.9rem;color:var(--text);cursor:pointer;font-family:inherit;
+    transition:transform .15s ease,background .15s ease,border-color .15s}
+  .level-card:hover:not(.locked){transform:translateY(-2px);border-color:var(--amber);background:rgba(245,158,11,.08)}
+  .level-card.locked{opacity:.5;cursor:not-allowed}
+  .lc-num{font-weight:800;font-size:.95rem;color:var(--amber)}
+  .lc-name{font-size:.78rem;color:var(--muted);margin-top:.15rem;min-height:2em}
+  .lc-stars{color:var(--amber);letter-spacing:.12em;margin-top:.35rem;font-size:.95rem}
+  .lc-lock{font-size:.72rem;color:var(--muted);margin-top:.3rem;font-weight:600}
+
+  /* HUD */
+  .hud{position:fixed;inset:0;z-index:10;display:none;pointer-events:none;padding:1rem 1.25rem}
+  .hud.show{display:block}
+  .hud-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .hud-left{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--line);border-radius:12px;padding:.6rem .9rem}
+  .hud-level{font-weight:800;color:var(--amber);font-size:.9rem;letter-spacing:.08em}
+  .hud-score{font-weight:700;font-size:1.05rem;margin-top:.15rem}
+  .hud-right{display:flex;gap:.5rem}
+  .hud-bottom{position:absolute;left:1.25rem;right:1.25rem;bottom:1.25rem;
+    display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .hud-targets{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--line);border-radius:12px;padding:.6rem .9rem;font-weight:600;font-size:.9rem}
+  .hud-targets b{color:var(--amber)}
+  .hud-balls{display:flex;gap:.4rem;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:.6rem .9rem;align-items:center}
+  .ball-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--amber);opacity:.35}
+  .ball-dot.filled{background:var(--amber);opacity:1}
+  .hud-balls.low .ball-dot.filled{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+  .power-wrap{position:absolute;left:50%;transform:translateX(-50%);bottom:4.5rem;width:180px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.5rem .6rem;display:none}
+  .power-wrap.show{display:block}
+  .power-label{font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:.3rem;letter-spacing:.1em}
+  .power-bar{height:8px;background:rgba(255,255,255,.12);border-radius:5px;overflow:hidden}
+  .power-fill{height:100%;width:0;background:linear-gradient(90deg,#F59E0B,#FBBF24);transition:width .05s linear}
+  .aim-hint{position:absolute;left:50%;bottom:1.25rem;transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:.5rem 1rem;
+    font-size:.82rem;color:var(--muted);white-space:nowrap;transition:opacity .4s}
+
+  /* result */
+  .result-panel{text-align:center}
+  .result-panel h2{font-size:1.6rem;color:var(--amber)}
+  .result-stars{font-size:2.4rem;color:var(--amber);letter-spacing:.25em;margin:.75rem 0 1rem}
+  .result-breakdown{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem}
+  .result-breakdown div{display:flex;justify-content:space-between;color:var(--muted);font-size:.92rem}
+  .result-breakdown div b{color:var(--text)}
+  .result-breakdown .total{border-top:1px solid var(--line);padding-top:.6rem;margin-top:.2rem;
+    font-size:1.05rem;color:var(--text);font-weight:700}
+  .result-breakdown .total b{color:var(--amber)}
+  .result-buttons{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+  .result-buttons .btn{min-width:140px}
+
+  /* pause */
+  .pause-panel{max-width:340px;display:flex;flex-direction:column;gap:.75rem;text-align:center}
+  .pause-panel h2{color:var(--amber);letter-spacing:.15em;margin-bottom:.5rem}
+
+  @media (max-width:520px){
+    .level-grid{grid-template-columns:repeat(2,1fr)}
+    .btn.primary,.btn.ghost{min-width:220px}
+    .hud-bottom{flex-direction:column;align-items:stretch;gap:.5rem}
+    .hud-balls{justify-content:center}
+    .hud-targets{text-align:center}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<!-- Loading -->
+<div id="loading" class="overlay active"><div class="panel" style="text-align:center">Menyiapkan arena 3D...</div></div>
+
+<!-- Main Menu -->
+<div id="menu" class="overlay">
+  <div class="topbar">
+    <button id="btn-sound" class="icon-btn" aria-label="Suara aktif">&#128266;</button>
+    <div class="stars-total"><span>&#9733;</span><span id="total-stars">0</span></div>
+  </div>
+  <div class="menu-center">
+    <h1 class="title">APEX <span>IMPACT</span> 3D</h1>
+    <p class="subtitle">Realistic Physics Challenge</p>
+    <div class="menu-buttons">
+      <button id="btn-play" class="btn primary">MULAI BERMAIN</button>
+      <button id="btn-levels" class="btn ghost">PILIH LEVEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level Select -->
+<div id="levelSelect" class="overlay">
+  <div class="panel level-panel">
+    <div class="panel-head">
+      <button id="btn-back-menu" class="btn small ghost">&larr; Kembali</button>
+      <h2>PILIH LEVEL</h2>
+      <span style="width:90px"></span>
+    </div>
+    <div id="level-grid" class="level-grid"></div>
+  </div>
+</div>
+
+<!-- In-game HUD -->
+<div id="hud" class="hud">
+  <div class="hud-top">
+    <div class="hud-left">
+      <div class="hud-level" id="hud-level">LEVEL 1</div>
+      <div class="hud-score" id="hud-score">SKOR 0</div>
+    </div>
+    <div class="hud-right">
+      <button id="btn-reset" class="icon-btn" aria-label="Ulangi level">&#8635;</button>
+      <button id="btn-pause" class="icon-btn" aria-label="Jeda">&#10074;&#10074;</button>
+    </div>
+  </div>
+  <div class="hud-bottom">
+    <div class="hud-targets">Target Tersisa: <b id="hud-targets">0/0</b></div>
+    <div class="hud-balls" id="hud-balls"></div>
+  </div>
+  <div class="power-wrap" id="power-wrap">
+    <div class="power-label">KEKUATAN</div>
+    <div class="power-bar"><div class="power-fill" id="power-fill"></div></div>
+  </div>
+  <div class="aim-hint" id="aim-hint">Tarik dan lepaskan untuk membidik</div>
+</div>
+
+<!-- Result -->
+<div id="result" class="overlay">
+  <div class="panel result-panel">
+    <h2 id="result-title">LEVEL SELESAI!</h2>
+    <div class="result-stars" id="result-stars">&#9733;&#9733;&#9733;</div>
+    <div class="result-breakdown">
+      <div><span>Skor Kehancuran</span><b id="res-destroy">0</b></div>
+      <div><span>Bonus Sisa Bola</span><b id="res-bonus">0</b></div>
+      <div class="total"><span>Total Skor</span><b id="res-total">0</b></div>
+    </div>
+    <div class="result-buttons">
+      <button id="btn-replay" class="btn ghost">ULANGI</button>
+      <button id="btn-next" class="btn primary">LANJUT &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div id="pause" class="overlay">
+  <div class="panel pause-panel">
+    <h2>JEDA</h2>
+    <button id="btn-resume" class="btn primary">LANJUTKAN</button>
+    <button id="btn-restart-pause" class="btn ghost">ULANGI LEVEL</button>
+    <button id="btn-menu-pause" class="btn ghost">MENU UTAMA</button>
+  </div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/cannon.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
