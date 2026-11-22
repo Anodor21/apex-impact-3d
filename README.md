@@ -29,5 +29,5 @@ Dibangun mengikuti dokumen `PRD & UI_UX Design - Apex Impact 3D.md` di folder in
 
 
 ## Catatan
-
+Link Web: https://anodor21.github.io/apex-impact-3d/
 Game ini dibuat untuk keperluan Tugas
